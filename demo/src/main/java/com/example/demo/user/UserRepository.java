@@ -8,6 +8,7 @@ import java.util.Optional;
 
 // This will be AUTO IMPLEMENTED by Spring into a Bean called userRepository
 // CRUD refers Create, Read, Update, Delete
+//TODO: Remove unnecessary comments
 @Repository
 public interface UserRepository extends JpaRepository<User, Integer> {
 
