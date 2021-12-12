@@ -2,7 +2,7 @@ package com.example.demo.user;
 
 import javax.persistence.*;
 
-@Entity // This tells Hibernate to make a table out of this class
+@Entity
 @Table
 public class User {
     @Id
@@ -17,7 +17,7 @@ public class User {
 
     private String phoneNumber;
 
-    private String status;
+    private Boolean status;
 
     private Integer otp;
 
@@ -69,11 +69,11 @@ public class User {
         this.otp = otp;
     }
 
-    public String getStatus() {
+    public Boolean getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(Boolean status) {
         this.status = status;
     }
 }

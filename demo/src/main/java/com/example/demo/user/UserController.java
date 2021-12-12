@@ -7,74 +7,52 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 
 @RestController
-@RequestMapping(path="/demo") // TODO : path name should sugeest the resource that we want to access
-                                // eg. users/
-public class UserController {
+@RequestMapping(path="/users")
 
-    @Autowired // TODO : Why do we need to inject repo in controller, this needs to be injected in service
-    private UserRepository userRepository;
+public class UserController {
 
     @Autowired
     private final UserService userService;
-
-    @Autowired
-    private PhoneNumberValidator phoneNumberValidator;
-    // TODO One thing to understand about validation is if it's business validation handle it in service
 
     public UserController(UserService userService){
         this.userService = userService;
     }
 
-    @GetMapping(path="/all") // no need to mention all if /user is used as path get represnts getting all user
+    @GetMapping
     public @ResponseBody Iterable<User> getAllUsers() {
         return userService.getAllUsers();
     }
 
-    @PostMapping(path="/register") // change this to accept request body create DTO to accept it
-    public boolean registerNewUser(@RequestParam String userName ,
-                                @RequestParam String name,
-                                @RequestParam String email,
-                                @RequestParam String phoneNumber){
+    @PostMapping(path="/register")
+    public String registerNewUser(@RequestBody UserDTO userDTO){
 
-        boolean isRegistered = userService.addNewUser(userName,name,email,phoneNumber);
+        userService.addNewUser(userDTO);
 
-        if(isRegistered){
-            User user = userRepository.findByEmail(email).orElseThrow(() -> new IllegalStateException(
-                    "A problem occurred while loading the user details"
-            ));
+       User user = userService.findUserByUserName(userDTO.getUserName());
 
-            userService.DeactivateUser(userService,user);
+        if(user != null){
+            userService.deactivateUser(user.getId());
 
-            Integer otp = userService.sendVerificationEmailToTheUser(user);
+            userService.sendVerificationEmailToTheUser(user.getId());
 
-            userService.updateUser(user.getId(),null,null,null,null,null, String.valueOf(otp));
-
-            return true;
+            return "User Registered Successfully";
         }
-
-        return false;
-
+        else{
+            return "User Registration Failed";
+        }
     }
 
     @PostMapping(path="/activate/{userId}")
     public void activateUser(@PathVariable("userId") Integer userId){
-        //TODO: all business logic needs to be handled in service
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException(
-                "User With Id " + userId + " does not exist"
-        ));
-        userService.ActivateUser(userService,user);
+
+        userService.activateUser(userId);
     }
 
     @PutMapping(path = "{userId}")
-    //TODO replace all pathvariable except userId to request body, use dto
     public void updateUser(
             @PathVariable("userId") Integer userId,
-            @RequestParam(required = false) String userName,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String email,
-            @RequestParam(required = false) String phoneNumber,
-            @RequestParam(required = false) String status) { // status is not supposed to be updated from user
-        userService.updateUser(userId,userName,name,email,phoneNumber,status,null);
+            @RequestBody(required = false) UserDTO userDTO) {
+        userService.updateUser(userId,userDTO);
     }
 
 

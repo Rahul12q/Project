@@ -12,7 +12,7 @@ import java.util.Random;
 @Service
 public class UserService {
 
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
 
     @Autowired
     private PhoneNumberValidator phoneNumberValidator;
@@ -26,68 +26,64 @@ public class UserService {
     Iterable<User> getAllUsers() {
         return userRepository.findAll();
     }
-    //TODO: this should be transactional
-    public boolean addNewUser(String userName,String name,String email,String phoneNumber) {
-        User user = new User();
 
-        user.setUserName(userName);
-        user.setFirstAndLastName(name);
-        user.setEmail(email);
-        user.setPhoneNumber(phoneNumber);
+    @Transactional
+    public void addNewUser(UserDTO userDTO) {
 
-        Optional<User> userOptionalEmail = userRepository.findByEmail(user.getEmail());
-        Optional<User> userOptionalUserName = userRepository.findByUserName(user.getUserName());
+        Optional<User> userOptionalEmail = userRepository.findByEmail(userDTO.getEmail());
+        Optional<User> userOptionalUserName = userRepository.findByUserName(userDTO.getUserName());
 
         if(userOptionalUserName.isPresent()){
-            System.out.println("UserName is not available."); //TODO, don't use sysout throw exception
-            return false;
+            throw new IllegalStateException("UserName is not available.");
         }
 
         if(userOptionalEmail.isPresent()){
-            System.out.println("Email is already registered by other user."); //TODO, don't use sysout throw exception
-            return false;
+            throw new IllegalStateException("Email is already registered by other user.");
         }
 
-        boolean isValid = phoneNumberValidator.validate(user.getPhoneNumber()); // use custom validators on model, use lo,bok instead
+        boolean isValid = phoneNumberValidator.validate(userDTO.getPhoneNumber()); // use custom validators on model, use lo,bok instead
 
         if(!isValid) {
-
-            System.out.println("Invalid Phone Number Entered.");
-            return false;
+            throw new IllegalStateException("Invalid Phone Number Entered.");
         }
-        userRepository.save(user);
 
-        return true; // TODO no need to this, add user defaulted to deactivate
+        User user = new User();
+
+        user.setUserName(userDTO.getUserName());
+        user.setFirstAndLastName(userDTO.getFirstAndLastName());
+        user.setEmail(userDTO.getEmail());
+        user.setPhoneNumber(userDTO.getPhoneNumber());
+
+        userRepository.save(user);
 
     }
 
     @Transactional
-    public void updateUser(Integer userId,String userName, String name, String email, String phoneNumber, String status, String otp) {
+    public void updateUser(Integer userId,UserDTO userDTO) {
+
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException(
                 "User With Id " + userId + " does not exist"
         ));
-        //TODO If you are making username as primary key you need to get prevUsername and newp one ,
-        // if you are chcking on userId this can be removed you call!
-        Optional<User> userOptionalUserName = userRepository.findByUserName(userName);
 
-        if(userName != null && userName.length() > 0) {
-            if (userOptionalUserName.isPresent()) {
+        if(userDTO.getUserName() != null && userDTO.getUserName().length() > 0) {
+            if ((user.getUserName()).equals(userDTO.getUserName())) {
                 throw new IllegalStateException("UserName is not available.");
-            } else {
-                user.setUserName(userName);
+            } else
+            {
+                user.setUserName(userDTO.getUserName());
             }
         }
 
-        if(name != null && (name.length() > 0)){
-            user.setFirstAndLastName(name);
+        if(userDTO.getFirstAndLastName() != null && (userDTO.getFirstAndLastName().length() > 0)){
+            user.setFirstAndLastName(userDTO.getFirstAndLastName());
         }
 
-        if(email != null && email.length() > 0){
-            Optional<User> userOptional = userRepository.findByEmail(email);
-            if(userOptional.isPresent()){
+        if(userDTO.getEmail() != null && userDTO.getEmail().length() > 0){
+            if(user.getEmail().equals(userDTO.getEmail())){
                 throw new IllegalStateException("Old Email Address Entered");
+            }else {
+                user.setEmail(userDTO.getEmail());
             }
-            user.setEmail(email);
         }
 
         //TODO: just make sure if email, phone is changed, use needs to revalidate the email and phone
@@ -95,16 +91,8 @@ public class UserService {
 
         if(!isValid) {
             throw new IllegalStateException("Invalid Phone Number Entered.");
-        }else{
+        }else {
             user.setPhoneNumber(user.getPhoneNumber());
-        }
-
-        if(status != null && status.length() > 0){
-            user.setStatus(status);
-        }
-        //TODO OTP should never be updated by user
-        if(otp != null && otp.length() > 0){
-            user.setOtp(Integer.valueOf(otp));
         }
     }
 
@@ -116,50 +104,51 @@ public class UserService {
         userRepository.deleteById(userId);
     }
 
-    // TODO: name should be camelCase
-    public void ActivateUser(UserService userService,User user) {
-        // TODO: why checked userservice ot user here, refactor this
-        if(userService != null && user != null) {
-            //TODO: generate otp while adding user and save it in db, get otp from db.
-            boolean isValidOtp = userService.verifyOtp(user,123456);
+    @Transactional
+    public void activateUser(Integer userId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException(
+                "User With Id " + userId + " does not exist"
+        ));
 
-            if (!isValidOtp) {
-                throw new IllegalStateException("Invalid otp please try again");
-            } else {
-                //TODO Don't do this. use repo to update the user, load the user and just activate it, take a boolean name active and set it true or false
-                userService.updateUser(user.getId(), null, null, null, null, "Activated", null);
-            }
-        }
-        else{
-            throw new IllegalStateException("Error: Cannot activate user");
-        }
-    }
-    // TODO: name should be camelCase
-    public void DeactivateUser(UserService userService,User user) {
-        // TODO: why checked userservice ot user here, refactor this
-        if(userService != null && user != null) {
-            userService.updateUser(user.getId(), null, null, null, null, "Deactivated",null);
-        }
-        else{
-            throw new IllegalStateException("Error: Cannot deactivate user");
+        //TODO: generate otp while adding user and save it in db, get otp from db.
+        boolean isValidOtp = this.verifyOtp(user.getOtp(),user.getOtp());
+
+        if (!isValidOtp) {
+            throw new IllegalStateException("Invalid otp please try again");
+        } else {
+            user.setStatus(true);
         }
     }
 
-    public Integer sendVerificationEmailToTheUser(User user) {
-        //TODO : use random
-        Random rdm = new Random();
-        //int otp = rdm.nextInt(999999);
-        int otp = 123456;
-        return otp;
+    @Transactional
+    public void deactivateUser(Integer userId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException(
+                "User With Id " + userId + " does not exist"
+        ));
+        user.setStatus(false);
     }
 
-    public boolean verifyOtp(User user,int otp){
-        // TODO : no need to write if else , you can just return user.getOtp === otp
-        if(user.getOtp() == otp){
-            return true;
-        }
-        else{
-            return false;
-        }
+    @Transactional
+    public void sendVerificationEmailToTheUser(Integer userId) {
+
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException(
+                "Failed to send verification email"
+        ));
+
+        Random random = new Random();
+        int otp = random.nextInt(999999);
+        user.setOtp(otp);
+    }
+
+    public boolean verifyOtp(int generatedOtp,int receivedOtp){
+        return(generatedOtp == receivedOtp);
+    }
+
+    public User findUserByUserName(String userName) {
+        User user;
+        user= userRepository.findByUserName(userName).orElseThrow(() -> new IllegalStateException(
+                "User " +  userName + " does not exist"
+        ));
+        return user;
     }
 }
