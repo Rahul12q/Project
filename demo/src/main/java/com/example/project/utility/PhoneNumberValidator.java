@@ -1,12 +1,10 @@
-package com.example.demo.utility;
+package com.example.project.utility;
 
 import org.springframework.stereotype.Service;
 
 @Service
 public class PhoneNumberValidator {
     public boolean validate(String phoneNumber) {
-
-        // TODO remove white spaces, use lombok validation istead
         if(phoneNumber.length() != 10){
             return false;
         }
@@ -18,6 +16,5 @@ public class PhoneNumberValidator {
             }
         }
         return true;
-
     }
 }

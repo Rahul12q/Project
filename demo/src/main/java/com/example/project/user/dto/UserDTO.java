@@ -1,4 +1,4 @@
-package com.example.demo.user;
+package com.example.project.user.dto;
 
 public class UserDTO {
     private String userName;

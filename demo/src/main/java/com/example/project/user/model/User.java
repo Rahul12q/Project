@@ -1,4 +1,4 @@
-package com.example.demo.user;
+package com.example.project.user.model;
 
 import javax.persistence.*;
 
@@ -20,6 +20,20 @@ public class User {
     private Boolean status;
 
     private Integer otp;
+
+    public User(){
+
+    }
+
+    public User(Integer id, String userName, String firstAndLastName, String email, String phoneNumber, Boolean status, Integer otp) {
+        this.id = id;
+        this.userName = userName;
+        this.firstAndLastName = firstAndLastName;
+        this.email = email;
+        this.phoneNumber = phoneNumber;
+        this.status = status;
+        this.otp = otp;
+    }
 
     public Integer getId() {
         return id;

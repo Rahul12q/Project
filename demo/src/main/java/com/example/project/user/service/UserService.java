@@ -1,25 +1,30 @@
-package com.example.demo.user;
+package com.example.project.user.service;
 
+import com.example.project.user.model.User;
+import com.example.project.user.dto.UserDTO;
+import com.example.project.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.ResponseBody;
-import com.example.demo.utility.PhoneNumberValidator;
+import com.example.project.utility.PhoneNumberValidator;
 
 import javax.transaction.Transactional;
 import java.util.Optional;
-import java.util.Random;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
 
-    @Autowired
+    private final EmailService emailService;
+
     private PhoneNumberValidator phoneNumberValidator;
 
     @Autowired
-    public UserService(UserRepository userRepository){
+    public UserService(UserRepository userRepository, PhoneNumberValidator phoneNumberValidator,EmailService emailService){
         this.userRepository = userRepository;
+        this.phoneNumberValidator = phoneNumberValidator;
+        this.emailService = emailService;
     }
 
     public @ResponseBody
@@ -28,7 +33,7 @@ public class UserService {
     }
 
     @Transactional
-    public void addNewUser(UserDTO userDTO) {
+    public User addNewUser(UserDTO userDTO) {
 
         Optional<User> userOptionalEmail = userRepository.findByEmail(userDTO.getEmail());
         Optional<User> userOptionalUserName = userRepository.findByUserName(userDTO.getUserName());
@@ -47,29 +52,23 @@ public class UserService {
             throw new IllegalStateException("Invalid Phone Number Entered.");
         }
 
-        User user = new User();
-
-        user.setUserName(userDTO.getUserName());
-        user.setFirstAndLastName(userDTO.getFirstAndLastName());
-        user.setEmail(userDTO.getEmail());
-        user.setPhoneNumber(userDTO.getPhoneNumber());
+        User user = new User(null,userDTO.getUserName(),userDTO.getFirstAndLastName(),userDTO.getEmail(),userDTO.getPhoneNumber(),false,null);
 
         userRepository.save(user);
+
+        return user;
 
     }
 
     @Transactional
     public void updateUser(Integer userId,UserDTO userDTO) {
 
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException(
-                "User With Id " + userId + " does not exist"
-        ));
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("User With Id " + userId + " does not exist"));
 
         if(userDTO.getUserName() != null && userDTO.getUserName().length() > 0) {
             if ((user.getUserName()).equals(userDTO.getUserName())) {
                 throw new IllegalStateException("UserName is not available.");
-            } else
-            {
+            } else {
                 user.setUserName(userDTO.getUserName());
             }
         }
@@ -83,16 +82,17 @@ public class UserService {
                 throw new IllegalStateException("Old Email Address Entered");
             }else {
                 user.setEmail(userDTO.getEmail());
+                user.setStatus(false);
+                emailService.sendVerificationEmailToTheUser(user.getId());
             }
         }
 
-        //TODO: just make sure if email, phone is changed, use needs to revalidate the email and phone
-        boolean isValid = phoneNumberValidator.validate(user.getPhoneNumber());
-
-        if(!isValid) {
-            throw new IllegalStateException("Invalid Phone Number Entered.");
-        }else {
-            user.setPhoneNumber(user.getPhoneNumber());
+        if(userDTO.getPhoneNumber() != null && userDTO.getPhoneNumber().length() > 0) {
+            if (!(phoneNumberValidator.validate(userDTO.getPhoneNumber()))) {
+                throw new IllegalStateException("Invalid Phone Number Entered.");
+            } else {
+                user.setPhoneNumber(userDTO.getPhoneNumber());
+            }
         }
     }
 
@@ -106,11 +106,7 @@ public class UserService {
 
     @Transactional
     public void activateUser(Integer userId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException(
-                "User With Id " + userId + " does not exist"
-        ));
-
-        //TODO: generate otp while adding user and save it in db, get otp from db.
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("User With Id " + userId + " does not exist"));
         boolean isValidOtp = this.verifyOtp(user.getOtp(),user.getOtp());
 
         if (!isValidOtp) {
@@ -122,33 +118,16 @@ public class UserService {
 
     @Transactional
     public void deactivateUser(Integer userId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException(
-                "User With Id " + userId + " does not exist"
-        ));
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("User With Id " + userId + " does not exist"));
         user.setStatus(false);
     }
 
     @Transactional
     public void sendVerificationEmailToTheUser(Integer userId) {
-
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException(
-                "Failed to send verification email"
-        ));
-
-        Random random = new Random();
-        int otp = random.nextInt(999999);
-        user.setOtp(otp);
+        emailService.sendVerificationEmailToTheUser(userId);
     }
 
     public boolean verifyOtp(int generatedOtp,int receivedOtp){
-        return(generatedOtp == receivedOtp);
-    }
-
-    public User findUserByUserName(String userName) {
-        User user;
-        user= userRepository.findByUserName(userName).orElseThrow(() -> new IllegalStateException(
-                "User " +  userName + " does not exist"
-        ));
-        return user;
+        return(emailService.verifyOtp(generatedOtp,receivedOtp));
     }
 }

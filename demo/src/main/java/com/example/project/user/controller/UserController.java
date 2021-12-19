@@ -1,10 +1,10 @@
-package com.example.demo.user;
+package com.example.project.user.controller;
 
-import com.example.demo.utility.PhoneNumberValidator;
+import com.example.project.user.dto.UserDTO;
+import com.example.project.user.model.User;
+import com.example.project.user.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Optional;
 
 @RestController
 @RequestMapping(path="/users")
@@ -26,9 +26,7 @@ public class UserController {
     @PostMapping(path="/register")
     public String registerNewUser(@RequestBody UserDTO userDTO){
 
-        userService.addNewUser(userDTO);
-
-       User user = userService.findUserByUserName(userDTO.getUserName());
+        User user = userService.addNewUser(userDTO);
 
         if(user != null){
             userService.deactivateUser(user.getId());
@@ -44,7 +42,6 @@ public class UserController {
 
     @PostMapping(path="/activate/{userId}")
     public void activateUser(@PathVariable("userId") Integer userId){
-
         userService.activateUser(userId);
     }
 

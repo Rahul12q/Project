@@ -1,4 +1,4 @@
-package com.example.demo.utility;
+package com.example.project.utility;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.assertj.core.api.Assertions;
 
 
-class PhoneNumberValidatorTest {
+public class PhoneNumberValidatorTest {
 
     private PhoneNumberValidator phoneNumberValidator;
 
